@@ -1,1 +1,32 @@
+name: Upload IPA to App Store Connect
 
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download IPA from Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download --repo ${{ github.repository }} --pattern "*.ipa" --clobber
+
+      - name: Setup Private Key
+        run: |
+          mkdir -p ~/.private_keys
+          echo "${{ secrets.APP_STORE_KEY_P8 }}" > ~/.private_keys/AuthKey_${{ secrets.KEY_ID }}.p8
+
+      - name: Upload App to App Store Connect
+        run: |
+          IPA_FILE=$(ls *.ipa | head -n 1)
+          xcrun altool --upload-app \
+            -f "$IPA_FILE" \
+            -t ios \
+            --apiKey "${{ secrets.KEY_ID }}" \
+            --apiIssuer "${{ secrets.ISSUER_ID }}"
